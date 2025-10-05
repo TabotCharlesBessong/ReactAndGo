@@ -2,7 +2,11 @@ package main
 
 import (
 	"fmt"
+
+	// "github.com/TabotCharlesBessong/ReactAndGo/tree/movie_streamer/movie_streaming/go_server/controllers"
+	"github.com/TabotCharlesBessong/ReactAndGo/tree/movie_streamer/movie_streaming/go_server/routes"
 	"github.com/gin-gonic/gin"
+	// controllers "github.com/TabotCharlesBessong/ReactAndGo/tree/movie_streamer/movie_streaming/go_server/controllers"
 )
 
 func main() {
@@ -15,6 +19,10 @@ func main() {
 			"message": "pong",
 		})
 	})
+
+	routes.SetupUnProtectedRoutes(router)
+	routes.SetupProtectedRoutes(router)
+	
 	if err := router.Run(":8080"); err != nil {
 		fmt.Println("Failed to run server:", err)
 	}
