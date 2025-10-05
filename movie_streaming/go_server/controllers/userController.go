@@ -157,6 +157,17 @@ func LoginUser() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Login successful", "token": token, "refresh_token": refreshToken})
+		utils.UpdateAllTokens(token, refreshToken, foundUser.UserID)
+
+		c.JSON(http.StatusOK, models.UserResponse{
+			UserId:          foundUser.UserID,
+			FirstName:       foundUser.FirstName,
+			LastName:        foundUser.LastName,
+			Email:           foundUser.Email,
+			Role:            foundUser.Role,
+			Token:           token,
+			RefreshToken:    refreshToken,
+			FavouriteGenres: foundUser.FavouriteGenres,
+		})
 	}
 }
