@@ -13,6 +13,7 @@ import (
 
 )
 
+var movieCollection *mongo.Collection = database.OpenCollection("movies")
 
 func GetMovies(client *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -20,7 +21,6 @@ func GetMovies(client *mongo.Client) gin.HandlerFunc {
 		ctx,cancel := context.WithTimeout(context.Background(),100*time.Second)
 		
 		defer cancel()
-		var movieCollection *mongo.Collection = database.OpenCollection("movies")
 
 		var movies []models.Movie
 
@@ -37,5 +37,32 @@ func GetMovies(client *mongo.Client) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK,movies)
+	}
+}
+
+func GetMovie() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Implementation will go here
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+ 
+		movieID := c.Param("imdb_id")
+
+		if movieID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Movie ID is required"})
+			return
+		}
+
+		var movie models.Movie
+		err := movieCollection.FindOne(ctx, bson.M{"imdb_id": movieID}).Decode(&movie)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Movie not found"})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch movie"})
+			}
+			return
+		}
+		c.JSON(http.StatusOK, movie)
 	}
 }
