@@ -10,10 +10,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"github.com/go-playground/validator/v10"
 
 )
 
 var movieCollection *mongo.Collection = database.OpenCollection("movies")
+
+var validate = validator.New()
 
 func GetMovies(client *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -64,5 +67,43 @@ func GetMovie() gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, movie)
+	}
+}
+
+func CreateMovie() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Implementation will go here
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+
+		var movie models.Movie
+
+		if err := c.BindJSON(&movie); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+			return
+		}
+
+		_, err := movieCollection.InsertOne(ctx, movie)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create movie"})
+			return
+		}
+
+		if err := validate.Struct(movie); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error":"Validation failed","details": err.Error()})
+
+			return
+		}
+
+		// insert data
+
+		result, err := movieCollection.InsertOne(ctx,movie)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError,gin.H{"error":"Failed to add movie"})
+			return
+		}
+
+		c.JSON(http.StatusCreated, result)
 	}
 }
