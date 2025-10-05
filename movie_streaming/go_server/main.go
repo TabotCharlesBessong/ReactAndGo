@@ -17,7 +17,7 @@ func main() {
 		})
 	})
 
-	router.GET("/movies", controllers.getMovies())
+	router.GET("/movies", controllers.GetMovies(nil))
 	if err := router.Run(":8080"); err != nil {
 		fmt.Println("Failed to run server:", err)
 	}

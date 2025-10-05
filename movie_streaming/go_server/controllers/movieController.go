@@ -20,7 +20,7 @@ func GetMovies(client *mongo.Client) gin.HandlerFunc {
 		ctx,cancel := context.WithTimeout(context.Background(),100*time.Second)
 		
 		defer cancel()
-		var movieCollection *mongo.Collection = database.OpenCollection("movies",client)
+		var movieCollection *mongo.Collection = database.OpenCollection("movies")
 
 		var movies []models.Movie
 

@@ -37,9 +37,30 @@ func Connect() *mongo.Client {
 	return client
 }
 
-//var Client *mongo.Client = DBInstance()
+func DBInstance() *mongo.Client {
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Println("Warning: unable to find .env file")
+	}
+	MongoDb := os.Getenv("MONGODB_URI")
+	if MongoDb == "" {
+		log.Fatal("MONGODB_URI not set!")
+	}
+	fmt.Println("MongoDB URI: ", MongoDb)
 
-func OpenCollection(collectionName string, client *mongo.Client) *mongo.Collection {
+	clientOptions := options.Client().ApplyURI(MongoDb)
+
+	client, err := mongo.Connect(clientOptions)
+	if err != nil {
+		return nil
+	}
+
+	return client
+}
+
+var Client *mongo.Client = DBInstance()
+
+func OpenCollection(collectionName string) *mongo.Collection {
 
 	err := godotenv.Load(".env")
 	if err != nil {
@@ -50,7 +71,7 @@ func OpenCollection(collectionName string, client *mongo.Client) *mongo.Collecti
 
 	fmt.Println("DATABASE_NAME: ", databaseName)
 
-	collection := client.Database(databaseName).Collection(collectionName)
+	collection := Client.Database(databaseName).Collection(collectionName)
 
 	if collection == nil {
 		return nil
