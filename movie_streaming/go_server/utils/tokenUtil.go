@@ -2,10 +2,12 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"os"
 	"time"
 
 	"github.com/TabotCharlesBessong/ReactAndGo/tree/movie_streamer/movie_streaming/go_server/database"
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -90,3 +92,37 @@ func UpdateAllTokens(token string, refreshToken string, userId string) (err erro
 	return nil
 }
 
+func GetAccessToken(c *gin.Context) (string,error) {
+	authHeader := c.Request.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("authorization header is missing")
+	}
+
+	tokenString := authHeader[len("Bearer "):]
+	if tokenString == "" {
+		return "", errors.New("token is missing from Authorization header")
+	}
+	return tokenString, nil
+}
+
+func ValidateToken(tokenString string) (*SignedDetails, error) {
+	claims := &SignedDetails{}
+
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(SECRET_KEY), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		return nil, err
+	}
+
+	if claims.ExpiresAt.Time.Before(time.Now()) {
+		return nil, errors.New("token has expired")
+	}
+
+	return claims, nil
+
+}
