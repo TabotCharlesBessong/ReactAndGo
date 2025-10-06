@@ -6,17 +6,20 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/TabotCharlesBessong/ReactAndGo/tree/movie_streamer/movie_streaming/go_server/database"
 	"github.com/TabotCharlesBessong/ReactAndGo/tree/movie_streamer/movie_streaming/go_server/models"
+	"github.com/TabotCharlesBessong/ReactAndGo/tree/movie_streamer/movie_streaming/go_server/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 	"github.com/tmc/langchaingo/llms/openai"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 var movieCollection *mongo.Collection = database.OpenCollection("movies")
@@ -260,4 +263,99 @@ func GetRankings() ([]models.Ranking, error) {
 	}
 
 	return rankings, nil
+}
+
+func GetRecommendedMovies() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Implementation will go here
+		// ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+		// defer cancel()
+
+		userId, err := utils.GetUserIdFromContext(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "User Id not found in context"})
+			return
+		}
+
+		favourite_genres, err := GetUserFavouriteGenres(userId)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user's favourite genres"})
+			return
+		}
+
+		err = godotenv.Load(".env")
+
+		if err != nil {
+			log.Println("Error loading .env file:", err)
+		}
+
+		var recommendedMovieLimitVal int64 = 5
+
+		recommendedMovieLimitStr := os.Getenv("RECOMMENDED_MOVIES_COUNT")
+
+		if recommendedMovieLimitStr != "" {
+			recommendedMovieLimitVal, _ = strconv.ParseInt(recommendedMovieLimitStr, 10, 64)
+		}
+
+		findOptions := options.Find()
+		findOptions.SetSort(bson.D{{Key: "ranking.ranking_value", Value: 1}})
+
+		filter := bson.M{"genre.genre_name": bson.M{"$in": favourite_genres}}
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+
+		cursor, err := movieCollection.Find(ctx, filter, findOptions.SetLimit(recommendedMovieLimitVal))
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch recommended movies."})
+			return
+		}
+
+		defer cursor.Close(ctx)
+
+		var recommendedMovies []models.Movie
+
+		if err = cursor.All(ctx, &recommendedMovies); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch recommended movies."})
+			return
+		}
+	  c.JSON(http.StatusOK, recommendedMovies)
+	}
+}
+
+
+func GetUserFavouriteGenres(userId string) ([]string, error) {
+	// Implementation will go here
+
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
+
+	filter := bson.M{"user_id": userId}
+
+	projection := bson.M{"favourite_genres.genre_name": 1, "_id": 0}
+
+	filterOptions := options.FindOne().SetProjection(projection)
+	var result bson.M
+
+	err := userCollection.FindOne(ctx, filter, filterOptions).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	favouriteGenresRaw, ok := result["favourite_genres"].([]interface{})
+	if !ok {
+		return nil, errors.New("failed to cast favourite_genres")
+	}
+
+	var genreNames []string
+
+	for _, genre := range favouriteGenresRaw {
+		if genreMap, ok := genre.(map[string]interface{}); ok {
+			if name, ok := genreMap["genre_name"].(string); ok {
+				genreNames = append(genreNames, name)
+			}
+		}
+	}
+	return genreNames, nil
 }
