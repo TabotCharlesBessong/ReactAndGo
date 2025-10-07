@@ -120,6 +120,18 @@ func CreateMovie() gin.HandlerFunc {
 func AdminReviewUpdate() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Implementation will go here
+
+		role,err := utils.GetRoleFromContext(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Role not found in context"})
+			return
+		}
+
+		if role != "ADMIN"{
+			c.JSON(http.StatusForbidden, gin.H{"error": "Only admin users can update reviews"})
+			return
+		}
+
 		movieId := c.Param("imdb_id")
 		if movieId == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Movie ID is required"})
